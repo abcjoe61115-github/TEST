@@ -1,37 +1,42 @@
 <!DOCTYPE html>
 <html>
+<head>
+    <title>BLE连接示例</title>
+</head>
 <body>
-<button id="connect">連接序列埠</button>
-<pre id="output"></pre>
+    <button id="connectButton">连接到BLE设备</button>
+    <p id="dataDisplay">读取的数据将显示在这里</p>
 
-<script>
-const output = document.querySelector('#output');
-document.querySelector('#connect').addEventListener('click', async () => {
-  if ('serial' in navigator) {
-    try {
-      const port = await navigator.serial.requestPort();
-      await port.open({ baudRate: 9600 });
-      const reader = port.readable.getReader();
+    <script>
+        const connectButton = document.getElementById("connectButton");
+        const dataDisplay = document.getElementById("dataDisplay");
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) {
-          reader.releaseLock();
-          break;
-        }
-        output.textContent = new TextDecoder().decode(value);
-      }
-    } catch (err) {
-      console.error('There was an error opening the serial port:', err);
-    }
-  } else {
-    console.error('Web serial doesn\'t seem to be enabled in your browser. Try enabling it by visiting:');
-    console.error('chrome://flags/#enable-experimental-web-platform-features');
-    console.error('opera://flags/#enable-experimental-web-platform-features');
-    console.error('edge://flags/#enable-experimental-web-platform-features');
-  }
-});
-</script>
+        let connectedDevice = null;
 
+        connectButton.addEventListener("click", async () => {
+            try {
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: ['49535343-fe7d-4ae5-8fa9-9fafd205e455'] }]
+                });
+
+                const server = await device.gatt.connect();
+
+                // 连接成功后，连接到特定的特征值
+                const service = await server.getPrimaryService('49535343-fe7d-4ae5-8fa9-9fafd205e455');
+                const characteristic = await service.getCharacteristic('49535343-1e4d-4bd9-ba61-23c647249616');
+
+                // 读取特征值的数据
+                const data = await characteristic.readValue();
+
+                // 将数据显示在页面上
+                dataDisplay.textContent = "读取的数据: " + data.buffer;
+                
+                // 存储连接的设备，以便以后操作
+                connectedDevice = device;
+            } catch (error) {
+                console.error("连接失败: " + error);
+            }
+        });
+    </script>
 </body>
 </html>
